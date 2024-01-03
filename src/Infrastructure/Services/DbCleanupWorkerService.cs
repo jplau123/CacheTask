@@ -11,7 +11,6 @@ public class DbCleanupWorkerService : BackgroundService
     private readonly ILogger<DbCleanupWorkerService> _logger;
     private readonly IServiceProvider _serviceProvider;
 
-
     public DbCleanupWorkerService(
         ILogger<DbCleanupWorkerService> logger,
         IServiceProvider serviceProvider)
