@@ -1,0 +1,6 @@
+@CacheTask_HostAddress = http://localhost:5091
+
+GET {{CacheTask_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
