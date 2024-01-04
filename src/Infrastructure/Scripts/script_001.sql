@@ -2,7 +2,7 @@ DROP TABLE IF EXISTS pairs;
 
 CREATE TABLE pairs (
 	id serial PRIMARY KEY,
-	key varchar(255) NOT NULL,
+	key varchar(255) UNIQUE NOT NULL,
 	value text,
 	expires_at timestamp DEFAULT NOW(),
 	expiration_period interval NOT NULL

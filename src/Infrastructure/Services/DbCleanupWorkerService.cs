@@ -35,7 +35,7 @@ public class DbCleanupWorkerService : BackgroundService
 
                 using (var scope = _serviceProvider.CreateScope())
                 {
-                    var itemRepository = scope.ServiceProvider.GetRequiredService<IItemRepository>()
+                    var itemRepository = scope.ServiceProvider.GetRequiredService<IPairRepository>()
                         ?? throw new Exception("Service IItemRepository not found.");
 
                     int affectedRows = await itemRepository.DeleteOlderThan(DateTimeOffset.UtcNow);
