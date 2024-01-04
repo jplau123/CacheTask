@@ -1,8 +1,11 @@
 ﻿using Application.DTOs.Requests;
 using Application.DTOs.Responses;
 using Application.Interfaces;
+using Domain.Entities;
+using Domain.Exceptions;
 using Domain.Interfaces;
 using Microsoft.Extensions.Configuration;
+using System.Text.Json;
 
 namespace Application.Services;
 
@@ -11,7 +14,9 @@ public class PairService : IPairService
     private readonly IPairRepository _pairRepository;
     private readonly IConfiguration _configuration;
 
-    public PairService(IPairRepository pairRepository, IConfiguration configuration)
+    public PairService(
+        IPairRepository pairRepository,
+        IConfiguration configuration)
     {
         _pairRepository = pairRepository;
         _configuration = configuration;
@@ -22,9 +27,46 @@ public class PairService : IPairService
         throw new NotImplementedException();
     }
 
-    public Task<CreatePairResponse> Create(CreatePairRequest request)
+    public async Task<CreatePairResponse> Create(CreatePairRequest request)
     {
-        throw new NotImplementedException();
+        var getResult = await _pairRepository.GetByKey(request.Key);
+
+        TimeSpan expirationTimeSpan = GetExpirationTimeSpan((int)getResult.ExpirationPeriodInSeconds!);
+
+        PairEntity pairEntityRequest = new()
+        {
+            Key = request.Key,
+            Value = SerializeJson(request.Value),
+            ExpiresAt = DateTime.UtcNow + expirationTimeSpan,
+            ExpirationPeriodInSeconds = expirationTimeSpan.Seconds
+        };
+
+        if (getResult is not null)
+        {
+            pairEntityRequest.Id = getResult.Id;
+            await _pairRepository.Update(pairEntityRequest);
+
+            return new CreatePairResponse()
+            {
+                Key = pairEntityRequest.Key,
+                Value = DeserializeJson(pairEntityRequest.Value),
+                ExpiresAt = pairEntityRequest.ExpiresAt,
+                ExpirationPeriodInSeconds = pairEntityRequest.ExpirationPeriodInSeconds
+            };
+        }
+        else
+        {
+            var pairEntityResponse = await _pairRepository.Create(pairEntityRequest)
+                ?? throw new Exception("Failed to save pair entity.");
+
+            return new CreatePairResponse()
+            {
+                Key = pairEntityResponse.Key,
+                Value = DeserializeJson(pairEntityResponse.Value),
+                ExpiresAt = pairEntityResponse.ExpiresAt,
+                ExpirationPeriodInSeconds = pairEntityResponse.ExpirationPeriodInSeconds
+            };
+        }
     }
 
     public Task Delete(string key)
@@ -35,5 +77,43 @@ public class PairService : IPairService
     public Task<GetPairResponse> Get(string key)
     {
         throw new NotImplementedException();
+    }
+
+    private static List<object> DeserializeJson(string value)
+    {
+        return JsonSerializer.Deserialize<List<object>>(value)
+            ?? throw new Exception("Failed to deserialize a string.");
+    }
+
+    private static string SerializeJson(List<object> list)
+    {
+        return JsonSerializer.Serialize(list)
+            ?? throw new Exception("Failed to serialize a list of objects to string.");
+    }
+
+    private TimeSpan GetExpirationTimeSpanFromConfig()
+    {
+        string configString = _configuration["ExpirationPerionInSeconds"]
+            ?? throw new ConfigException("ConfigException: ExpirationPeriodInSeconds could not be found.");
+
+        if (!int.TryParse(configString, out int expirationTimespan))
+            throw new ConfigException("ConfigException: ExpirationPeriodInSeconds can only have numbers.");
+
+        return TimeSpan.FromSeconds(expirationTimespan);
+    }
+
+    private TimeSpan GetExpirationTimeSpan(int expirationTimesSpanInSeconds)
+    {
+        if (expirationTimesSpanInSeconds < 0)
+            throw new ArgumentException("Given expiration period cannot be negative.");
+
+        TimeSpan expirationTimeStamp = TimeSpan.FromSeconds(expirationTimesSpanInSeconds);
+
+        TimeSpan expirationTimeStampFromConfig = GetExpirationTimeSpanFromConfig();
+
+        if (expirationTimeStamp < expirationTimeStampFromConfig)
+            return expirationTimeStamp;
+
+        return expirationTimeStampFromConfig;
     }
 }

@@ -6,7 +6,8 @@ namespace Domain.Interfaces
     {
         public Task<int> DeleteOlderThan(DateTimeOffset timestamp);
 
-        public Task<PairEntity> Create(PairEntity pair);
+        public Task<PairEntity?> Create(PairEntity pair);
+        public Task<int> Update(PairEntity pair);
         public Task<PairEntity> Append(PairEntity pair);
         public Task<PairEntity> GetByKey(string key);
         public Task<int> Delete(string key);
