@@ -39,6 +39,9 @@ public class ErrorMiddleware : IMiddleware
             case NotFoundException:
                 statusCode = (int)HttpStatusCode.NotFound;
                 break;
+            case IncorrectApiKeyException:
+                statusCode = (int)HttpStatusCode.Unauthorized;
+                break;
             case BadRequestException:
                 statusCode = (int)HttpStatusCode.BadRequest;
                 break;

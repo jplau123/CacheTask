@@ -1,0 +1,11 @@
+DROP TABLE IF EXISTS pairs;
+
+CREATE TABLE pairs (
+	id serial PRIMARY KEY,
+	key varchar(255) NOT NULL,
+	value text,
+	expires_at timestamp DEFAULT NOW()
+);
+
+CREATE INDEX key_index ON pairs(key);
+CREATE INDEX expires_at_index ON pairs(expires_at);
