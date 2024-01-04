@@ -42,8 +42,6 @@ public class DbCleanupWorkerService : BackgroundService
 
                     _logger.Log(LogLevel.Information, "Succesfully deleted {rows} rows.", affectedRows);
                 }
-
-                await Task.Delay(GetWorkerPeriod(), stoppingToken);
             }
             catch (ConfigException ex)
             {
@@ -55,6 +53,8 @@ public class DbCleanupWorkerService : BackgroundService
             {
                 _logger.Log(LogLevel.Error, "DB cleanup error: {message}", ex.Message);
             }
+
+            await Task.Delay(GetWorkerPeriod(), stoppingToken);
         }
 
         _logger.Log(LogLevel.Information, "DB cleanup ended.");

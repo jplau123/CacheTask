@@ -4,7 +4,8 @@ CREATE TABLE pairs (
 	id serial PRIMARY KEY,
 	key varchar(255) NOT NULL,
 	value text,
-	expires_at timestamp DEFAULT NOW()
+	expires_at timestamp DEFAULT NOW(),
+	expiration_period interval NOT NULL
 );
 
 CREATE INDEX key_index ON pairs(key);
