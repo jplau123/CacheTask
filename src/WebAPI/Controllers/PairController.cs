@@ -1,4 +1,6 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Application.DTOs.Requests;
+using Application.Interfaces;
+using Microsoft.AspNetCore.Mvc;
 
 namespace WebAPI.Controllers;
 
@@ -6,23 +8,25 @@ namespace WebAPI.Controllers;
 [ApiController]
 public class PairController : ControllerBase
 {
-    private readonly PairService _pairService;
-    public PairController(PairService pairService)
+    private readonly IPairService _pairService;
+
+    public PairController(IPairService pairService)
     {
         _pairService = pairService;
     }
 
-
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody]CreatePairRequest request)
+    public async Task<IActionResult> Create([FromBody] CreatePairRequest request)
     {
-        return Ok(await _pairService.Create(request));
+        var result =  await _pairService.Create(request);
+        return CreatedAtAction(nameof(Get), new {key=result.Key}, result);
     }
 
-    [HttpPost]
+    [HttpPost("append")]
     public async Task<IActionResult> Append([FromBody] AppendPairRequest request)
     {
-        return Ok(await _pairService.Append(request));
+        var result = await _pairService.Append(request);
+        return CreatedAtAction(nameof(Get), new { key = result.Key }, result);
     }
 
     [HttpDelete]
