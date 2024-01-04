@@ -1,4 +1,6 @@
+using Application.Interfaces;
 using Application.Profiles;
+using Application.Services;
 using DbUp;
 using Domain.Exceptions;
 using Domain.Interfaces;
@@ -22,7 +24,8 @@ builder.Services.AddScoped<IDbConnection>((serviceProvider) => new NpgsqlConnect
 builder.Services.AddTransient<ErrorMiddleware>();
 builder.Services.AddTransient<AuthMiddleware>();
 
-builder.Services.AddScoped<IItemRepository, ItemRepository>();
+builder.Services.AddScoped<IPairService, PairService>();
+builder.Services.AddScoped<IPairRepository, ItemRepository>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

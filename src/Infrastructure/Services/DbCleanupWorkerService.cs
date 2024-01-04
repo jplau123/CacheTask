@@ -35,15 +35,13 @@ public class DbCleanupWorkerService : BackgroundService
 
                 using (var scope = _serviceProvider.CreateScope())
                 {
-                    var itemRepository = scope.ServiceProvider.GetRequiredService<IItemRepository>()
+                    var itemRepository = scope.ServiceProvider.GetRequiredService<IPairRepository>()
                         ?? throw new Exception("Service IItemRepository not found.");
 
                     int affectedRows = await itemRepository.DeleteOlderThan(DateTimeOffset.UtcNow);
 
                     _logger.Log(LogLevel.Information, "Succesfully deleted {rows} rows.", affectedRows);
                 }
-
-                await Task.Delay(GetWorkerPeriod(), stoppingToken);
             }
             catch (ConfigException ex)
             {
@@ -55,6 +53,8 @@ public class DbCleanupWorkerService : BackgroundService
             {
                 _logger.Log(LogLevel.Error, "DB cleanup error: {message}", ex.Message);
             }
+
+            await Task.Delay(GetWorkerPeriod(), stoppingToken);
         }
 
         _logger.Log(LogLevel.Information, "DB cleanup ended.");
