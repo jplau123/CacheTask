@@ -5,7 +5,7 @@ CREATE TABLE pairs (
 	key varchar(255) UNIQUE NOT NULL,
 	value text,
 	expires_at timestamp DEFAULT NOW(),
-	expiration_period interval NOT NULL
+	expiration_period_in_seconds interval NOT NULL
 );
 
 CREATE INDEX key_index ON pairs(key);
