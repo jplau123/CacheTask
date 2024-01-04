@@ -2,7 +2,7 @@
 
 namespace WebAPI.Controllers;
 
-[Route("api/[controller]")]
+[Route("[controller]")]
 [ApiController]
 public class PairController : ControllerBase
 {
