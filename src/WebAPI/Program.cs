@@ -5,7 +5,6 @@ using DbUp;
 using Domain.Exceptions;
 using Domain.Interfaces;
 using Infrastructure.Repositories;
-using Infrastructure.Services;
 using Microsoft.OpenApi.Models;
 using Npgsql;
 using System.Data;
