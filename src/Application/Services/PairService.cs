@@ -31,14 +31,14 @@ public class PairService : IPairService
     {
         var getResult = await _pairRepository.GetByKey(request.Key);
 
-        TimeSpan expirationTimeSpan = GetExpirationTimeSpan((int)getResult.ExpirationPeriodInSeconds!);
+        TimeSpan expirationTimeSpan = GetExpirationTimeSpan(request.ExpirationPeriodInSeconds);
 
         PairEntity pairEntityRequest = new()
         {
             Key = request.Key,
             Value = SerializeJson(request.Value),
             ExpiresAt = DateTime.UtcNow + expirationTimeSpan,
-            ExpirationPeriodInSeconds = expirationTimeSpan.Seconds
+            ExpirationPeriodInSeconds = (int)expirationTimeSpan.TotalSeconds
         };
 
         if (getResult is not null)
@@ -54,24 +54,22 @@ public class PairService : IPairService
                 ExpirationPeriodInSeconds = pairEntityRequest.ExpirationPeriodInSeconds
             };
         }
-        else
-        {
-            var pairEntityResponse = await _pairRepository.Create(pairEntityRequest)
-                ?? throw new Exception("Failed to save pair entity.");
 
-            return new CreatePairResponse()
-            {
-                Key = pairEntityResponse.Key,
-                Value = DeserializeJson(pairEntityResponse.Value),
-                ExpiresAt = pairEntityResponse.ExpiresAt,
-                ExpirationPeriodInSeconds = pairEntityResponse.ExpirationPeriodInSeconds
-            };
-        }
+        var pairEntityResponse = await _pairRepository.Create(pairEntityRequest)
+            ?? throw new Exception("Failed to save pair entity.");
+
+        return new CreatePairResponse()
+        {
+            Key = pairEntityResponse.Key,
+            Value = DeserializeJson(pairEntityResponse.Value),
+            ExpiresAt = pairEntityResponse.ExpiresAt,
+            ExpirationPeriodInSeconds = pairEntityResponse.ExpirationPeriodInSeconds
+        };
     }
 
     public async Task Delete(string key)
     {
-       var keyValue =await _pairRepository.GetByKey(key);
+        var keyValue = await _pairRepository.GetByKey(key);
         if (keyValue == null)
         {
             throw new NotFoundException("Dont have this a key");
@@ -81,25 +79,19 @@ public class PairService : IPairService
 
     public async Task<GetPairResponse> Get(string key)
     {
-        if (key is null)
-            throw new BadRequestException("Key name should be entered.");
+        var result = await _pairRepository.GetByKey(key)
+            ?? throw new NotFoundException($"No key '{key}' exists.");
 
-        var result = await _pairRepository.GetByKey(key);
-
-        if (result is null)
+        if (result.ExpiresAt < DateTime.UtcNow)
         {
-            throw new NotFoundException($"No key \"{key}\" exists.");
-        }
-
-        if (result.ExpiresAt < DateTime.UtcNow) {
             await _pairRepository.Delete(key);
-            throw new NotFoundException($"No key \"{key}\" exists.");
+            throw new NotFoundException($"No key '{key}' exists.");
         }
 
         result.ExpiresAt = DateTime.UtcNow + TimeSpan.FromSeconds((int)result.ExpirationPeriodInSeconds!);
 
         var value = DeserializeJson(result.Value);
-        
+
         return new GetPairResponse
         {
             Key = result.Key,
@@ -132,20 +124,21 @@ public class PairService : IPairService
         return TimeSpan.FromSeconds(expirationTimespan);
     }
 
-    private TimeSpan GetExpirationTimeSpan(int expirationTimesSpanInSeconds)
+    private TimeSpan GetExpirationTimeSpan(int? expirationTimeStampProvided)
     {
-        if (expirationTimesSpanInSeconds < 0)
+        TimeSpan expirationTimeStampFromConfig = GetExpirationTimeSpanFromConfig();
+
+        if (expirationTimeStampProvided == null)
+            return expirationTimeStampFromConfig;
+
+        if (expirationTimeStampProvided < 0)
             throw new ArgumentException("Given expiration period cannot be negative.");
 
-        TimeSpan expirationTimeStamp = TimeSpan.FromSeconds(expirationTimesSpanInSeconds);
-
-        TimeSpan expirationTimeStampFromConfig = GetExpirationTimeSpanFromConfig();
+        TimeSpan expirationTimeStamp = TimeSpan.FromSeconds((int)expirationTimeStampProvided);
 
         if (expirationTimeStamp < expirationTimeStampFromConfig)
             return expirationTimeStamp;
 
         return expirationTimeStampFromConfig;
     }
-
-    
 }
