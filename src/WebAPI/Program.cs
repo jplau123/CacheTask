@@ -25,7 +25,7 @@ builder.Services.AddTransient<ErrorMiddleware>();
 builder.Services.AddTransient<AuthMiddleware>();
 
 builder.Services.AddScoped<IPairService, PairService>();
-builder.Services.AddScoped<IPairRepository, ItemRepository>();
+builder.Services.AddScoped<IPairRepository, PairRepository>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -63,9 +63,10 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddAutoMapper(typeof(AutoMapperProfile));
 
 // DbUp
+EnsureDatabase.For.PostgresqlDatabase(dbConnectonString);
 var upgrader = DeployChanges.To
         .PostgresqlDatabase(builder.Configuration.GetConnectionString("postgres"))
-        .WithScriptsEmbeddedInAssembly(typeof(ItemRepository).Assembly)
+        .WithScriptsEmbeddedInAssembly(typeof(PairRepository).Assembly)
         .LogToNowhere()
         .Build();
 
