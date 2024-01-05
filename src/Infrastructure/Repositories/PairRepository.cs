@@ -24,9 +24,14 @@ public class PairRepository : IPairRepository
         throw new NotImplementedException();
     }
 
-    public Task<int> Delete(string key)
+    public async Task<int> Delete(string key)
     {
-        throw new NotImplementedException();
+        string sql = "DELETE FROM pairs WHERE key=@Key;";
+        var queryObject = new
+        {
+            Key = key,
+        };
+        return await _connection.ExecuteAsync(sql, queryObject); 
     }
 
     public async Task<int> DeleteOlderThan(DateTimeOffset timestamp)

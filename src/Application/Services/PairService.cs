@@ -29,9 +29,14 @@ public class PairService : IPairService
         throw new NotImplementedException();
     }
 
-    public Task Delete(string key)
+    public async Task Delete(string key)
     {
-        throw new NotImplementedException();
+       var keyValue =await _pairRepository.GetByKey(key);
+        if (keyValue == null)
+        {
+            throw new NotFoundException("Dont have this a key");
+        }
+        await _pairRepository.Delete(key);
     }
 
     public async Task<GetPairResponse> Get(string key)
@@ -75,4 +80,6 @@ public class PairService : IPairService
         return JsonSerializer.Serialize(list)
             ?? throw new Exception("Failed to serialize a list of objects to string.");
     }
+
+    
 }

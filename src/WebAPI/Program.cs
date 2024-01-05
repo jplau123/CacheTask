@@ -30,7 +30,7 @@ builder.Services.AddScoped<IPairRepository, PairRepository>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-builder.Services.AddHostedService<DbCleanupWorkerService>();
+//builder.Services.AddHostedService<DbCleanupWorkerService>();
 
 builder.Services.AddSwaggerGen(options =>
 {
