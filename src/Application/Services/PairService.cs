@@ -22,9 +22,58 @@ public class PairService : IPairService
         _configuration = configuration;
     }
 
-    public Task<AppendPairResponse> Append(AppendPairRequest request)
+    public async Task<AppendPairResponse> Append(AppendPairRequest request)
     {
-        throw new NotImplementedException();
+        var getResult = await _pairRepository.GetByKey(request.Key);
+
+        TimeSpan expirationTimeSpan = (getResult is null) ? GetExpirationTimeSpanFromConfig() : GetExpirationTimeSpan(getResult.ExpirationPeriodInSeconds);
+
+        PairEntity pairEntityRequest;
+
+        if (getResult is null)
+        {
+            pairEntityRequest = new()
+            {
+                Key = request.Key,
+                Value = SerializeJson(request.Value),
+                ExpiresAt = DateTime.UtcNow + expirationTimeSpan,
+                ExpirationPeriodInSeconds = (int)expirationTimeSpan.TotalSeconds
+            };
+
+            PairEntity pairEntityResponse = await _pairRepository.Create(pairEntityRequest)
+                ?? throw new Exception("Failed to save pair entity.");
+
+            return new AppendPairResponse()
+            {
+                Key = pairEntityResponse.Key,
+                Value = DeserializeJson(pairEntityResponse.Value),
+                ExpiresAt = pairEntityResponse.ExpiresAt,
+                ExpirationPeriodInSeconds = pairEntityResponse.ExpirationPeriodInSeconds
+            };
+        }
+
+        var listOfObjects = DeserializeJson(getResult.Value);
+
+        listOfObjects.AddRange(request.Value);
+
+        pairEntityRequest = new()
+        {
+            Id = getResult.Id,
+            Key = request.Key,
+            Value = SerializeJson(listOfObjects),
+            ExpiresAt = DateTime.UtcNow + expirationTimeSpan,
+            ExpirationPeriodInSeconds = (int)expirationTimeSpan.TotalSeconds
+        };
+
+        await _pairRepository.Update(pairEntityRequest);
+
+        return new AppendPairResponse()
+        {
+            Key = getResult.Key,
+            Value = listOfObjects,
+            ExpiresAt = pairEntityRequest.ExpiresAt,
+            ExpirationPeriodInSeconds = pairEntityRequest.ExpirationPeriodInSeconds
+        };
     }
 
     public async Task<CreatePairResponse> Create(CreatePairRequest request)
@@ -41,39 +90,41 @@ public class PairService : IPairService
             ExpirationPeriodInSeconds = (int)expirationTimeSpan.TotalSeconds
         };
 
-        if (getResult is not null)
+        if (getResult is null)
         {
-            pairEntityRequest.Id = getResult.Id;
-            await _pairRepository.Update(pairEntityRequest);
+            var pairEntityResponse = await _pairRepository.Create(pairEntityRequest)
+                ?? throw new Exception("Failed to save pair entity.");
 
             return new CreatePairResponse()
             {
-                Key = pairEntityRequest.Key,
-                Value = DeserializeJson(pairEntityRequest.Value),
-                ExpiresAt = pairEntityRequest.ExpiresAt,
-                ExpirationPeriodInSeconds = pairEntityRequest.ExpirationPeriodInSeconds
+                Key = pairEntityResponse.Key,
+                Value = DeserializeJson(pairEntityResponse.Value),
+                ExpiresAt = pairEntityResponse.ExpiresAt,
+                ExpirationPeriodInSeconds = pairEntityResponse.ExpirationPeriodInSeconds
             };
         }
 
-        var pairEntityResponse = await _pairRepository.Create(pairEntityRequest)
-            ?? throw new Exception("Failed to save pair entity.");
+        pairEntityRequest.Id = getResult.Id;
+        await _pairRepository.Update(pairEntityRequest);
 
         return new CreatePairResponse()
         {
-            Key = pairEntityResponse.Key,
-            Value = DeserializeJson(pairEntityResponse.Value),
-            ExpiresAt = pairEntityResponse.ExpiresAt,
-            ExpirationPeriodInSeconds = pairEntityResponse.ExpirationPeriodInSeconds
+            Key = pairEntityRequest.Key,
+            Value = DeserializeJson(pairEntityRequest.Value),
+            ExpiresAt = pairEntityRequest.ExpiresAt,
+            ExpirationPeriodInSeconds = pairEntityRequest.ExpirationPeriodInSeconds
         };
     }
 
     public async Task Delete(string key)
     {
         var keyValue = await _pairRepository.GetByKey(key);
+
         if (keyValue == null)
         {
             throw new NotFoundException("Dont have this a key");
         }
+
         await _pairRepository.Delete(key);
     }
 
@@ -88,7 +139,9 @@ public class PairService : IPairService
             throw new NotFoundException($"No key '{key}' exists.");
         }
 
-        result.ExpiresAt = DateTime.UtcNow + TimeSpan.FromSeconds((int)result.ExpirationPeriodInSeconds!);
+        var newExpiresAt = DateTime.UtcNow + TimeSpan.FromSeconds((int)result.ExpirationPeriodInSeconds!);
+
+        await _pairRepository.UpdateEpiresAt(result.Key, newExpiresAt);
 
         var value = DeserializeJson(result.Value);
 
@@ -96,7 +149,7 @@ public class PairService : IPairService
         {
             Key = result.Key,
             Value = value,
-            ExpiresAt = result.ExpiresAt,
+            ExpiresAt = newExpiresAt,
             ExpirationPeriodInSeconds = result.ExpirationPeriodInSeconds
         };
     }

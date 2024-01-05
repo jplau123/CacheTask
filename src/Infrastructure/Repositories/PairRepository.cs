@@ -14,11 +14,6 @@ public class PairRepository : IPairRepository
         _connection = connection;
     }
 
-    public Task<PairEntity> Append(PairEntity pair)
-    {
-        throw new NotImplementedException();
-    }
-
     public async Task<PairEntity?> Create(PairEntity pair)
     {
         string sql = @"INSERT INTO pairs (key, value, expires_at, expiration_period_in_seconds) 
@@ -80,8 +75,16 @@ public class PairRepository : IPairRepository
         return await _connection.QueryFirstOrDefaultAsync<PairEntity?>(sql, new { key });
     }
 
-    public Task<int> UpdateEpiresAt(DateTimeOffset timestamp)
+    public async Task<int> UpdateEpiresAt(string key, DateTimeOffset timestamp)
     {
-        throw new NotImplementedException();
+        string sql = @"UPDATE pairs SET expires_at = @pairExpiresAt WHERE key = @pairKey";
+
+        var parameters = new
+        {
+            pairKey = key,
+            pairExpiresAt = timestamp
+        };
+
+        return await _connection.ExecuteAsync(sql, parameters);
     }
 }
