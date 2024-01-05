@@ -30,7 +30,7 @@ public class PairService : IPairService
 
         PairEntity pairEntityRequest;
 
-        if (getResult is null)
+        if (getResult is null || getResult.ExpiresAt < DateTime.UtcNow)
         {
             pairEntityRequest = new()
             {
@@ -90,7 +90,7 @@ public class PairService : IPairService
             ExpirationPeriodInSeconds = (int)expirationTimeSpan.TotalSeconds
         };
 
-        if (getResult is null)
+        if (getResult is null || getResult.ExpiresAt < DateTime.UtcNow)
         {
             var pairEntityResponse = await _pairRepository.Create(pairEntityRequest)
                 ?? throw new Exception("Failed to save pair entity.");

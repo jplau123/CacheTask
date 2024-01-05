@@ -8,6 +8,7 @@ using Infrastructure.Repositories;
 using Microsoft.OpenApi.Models;
 using Npgsql;
 using System.Data;
+using System.Reflection;
 using WebAPI.Extensions;
 using WebAPI.Middlewares;
 
@@ -34,6 +35,12 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo { Title = "CacheTask", Version = "v1" });
+
+    //var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
+    //var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
+    //options.IncludeXmlComments(xmlPath, includeControllerXmlComments: true);
+
+    options.EnableAnnotations();
 
     options.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
     {
