@@ -63,6 +63,7 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddAutoMapper(typeof(AutoMapperProfile));
 
 // DbUp
+EnsureDatabase.For.PostgresqlDatabase(dbConnectonString);
 var upgrader = DeployChanges.To
         .PostgresqlDatabase(builder.Configuration.GetConnectionString("postgres"))
         .WithScriptsEmbeddedInAssembly(typeof(PairRepository).Assembly)
