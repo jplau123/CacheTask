@@ -69,14 +69,44 @@ public class PairService : IPairService
         }
     }
 
-    public Task Delete(string key)
+    public async Task Delete(string key)
     {
-        throw new NotImplementedException();
+       var keyValue =await _pairRepository.GetByKey(key);
+        if (keyValue == null)
+        {
+            throw new NotFoundException("Dont have this a key");
+        }
+        await _pairRepository.Delete(key);
     }
 
-    public Task<GetPairResponse> Get(string key)
+    public async Task<GetPairResponse> Get(string key)
     {
-        throw new NotImplementedException();
+        if (key is null)
+            throw new BadRequestException("Key name should be entered.");
+
+        var result = await _pairRepository.GetByKey(key);
+
+        if (result is null)
+        {
+            throw new NotFoundException($"No key \"{key}\" exists.");
+        }
+
+        if (result.ExpiresAt < DateTime.UtcNow) {
+            await _pairRepository.Delete(key);
+            throw new NotFoundException($"No key \"{key}\" exists.");
+        }
+
+        result.ExpiresAt = DateTime.UtcNow + TimeSpan.FromSeconds((int)result.ExpirationPeriodInSeconds!);
+
+        var value = DeserializeJson(result.Value);
+        
+        return new GetPairResponse
+        {
+            Key = result.Key,
+            Value = value,
+            ExpiresAt = result.ExpiresAt,
+            ExpirationPeriodInSeconds = result.ExpirationPeriodInSeconds
+        };
     }
 
     private static List<object> DeserializeJson(string value)
@@ -116,4 +146,6 @@ public class PairService : IPairService
 
         return expirationTimeStampFromConfig;
     }
+
+    
 }

@@ -5,7 +5,6 @@ using DbUp;
 using Domain.Exceptions;
 using Domain.Interfaces;
 using Infrastructure.Repositories;
-using Infrastructure.Services;
 using Microsoft.OpenApi.Models;
 using Npgsql;
 using System.Data;
@@ -30,7 +29,7 @@ builder.Services.AddScoped<IPairRepository, PairRepository>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-builder.Services.AddHostedService<DbCleanupWorkerService>();
+//builder.Services.AddHostedService<DbCleanupWorkerService>();
 
 builder.Services.AddSwaggerGen(options =>
 {
@@ -63,6 +62,7 @@ builder.Services.AddSwaggerGen(options =>
 builder.Services.AddAutoMapper(typeof(AutoMapperProfile));
 
 // DbUp
+EnsureDatabase.For.PostgresqlDatabase(dbConnectonString);
 var upgrader = DeployChanges.To
         .PostgresqlDatabase(builder.Configuration.GetConnectionString("postgres"))
         .WithScriptsEmbeddedInAssembly(typeof(PairRepository).Assembly)

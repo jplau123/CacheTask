@@ -36,9 +36,14 @@ public class PairRepository : IPairRepository
         return await _connection.QueryFirstOrDefaultAsync<PairEntity?>(sql, parameters);
     }
 
-    public Task<int> Delete(string key)
+    public async Task<int> Delete(string key)
     {
-        throw new NotImplementedException();
+        string sql = "DELETE FROM pairs WHERE key=@Key;";
+        var queryObject = new
+        {
+            Key = key,
+        };
+        return await _connection.ExecuteAsync(sql, queryObject); 
     }
 
     public async Task<int> DeleteOlderThan(DateTimeOffset timestamp)
@@ -48,27 +53,29 @@ public class PairRepository : IPairRepository
         return await _connection.ExecuteAsync(sql, new { timestamp });
     }
 
-    public Task<PairEntity> GetByKey(string key)
-    {
-        throw new NotImplementedException();
-    }
-
-    public async Task<int> Update(PairEntity pair)
-    {
-        string sql = @"UPDATE pairs 
+public async Task<int> Update(PairEntity pair)
+{
+    string sql = @"UPDATE pairs 
                         SET key = @pairKey, value = @pairValue, expires_at = @pairExpiresAt, expiration_period_in_seconds = @pairExpirationPeriod 
                         WHERE id = @pairId";
 
-        var parameters = new
-        {
-            pairKey = pair.Key, 
-            pairValue = pair.Value,
-            pairExpiresAt = pair.ExpiresAt,
-            pairExpirationPeriod = pair.ExpirationPeriodInSeconds,
-            pairId = pair.Id
-        };
+    var parameters = new
+    {
+        pairKey = pair.Key,
+        pairValue = pair.Value,
+        pairExpiresAt = pair.ExpiresAt,
+        pairExpirationPeriod = pair.ExpirationPeriodInSeconds,
+        pairId = pair.Id
+    };
 
-        return await _connection.ExecuteAsync(sql, parameters);
+    return await _connection.ExecuteAsync(sql, parameters);
+}
+public async Task<PairEntity?> GetByKey(string key)
+    {
+        string sql = @"SELECT id, key, value, expires_at AS ExpiresAt, expiration_period_in_seconds AS ExpirationPeriodInSeconds
+                        FROM pairs
+                        WHERE key = @key";
+        return await _connection.QueryFirstOrDefaultAsync<PairEntity?>(sql, new { key });
     }
 
     public Task<int> UpdateEpiresAt(DateTimeOffset timestamp)
