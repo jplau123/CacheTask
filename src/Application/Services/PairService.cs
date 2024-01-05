@@ -1,6 +1,7 @@
 ﻿using Application.DTOs.Requests;
 using Application.DTOs.Responses;
 using Application.Interfaces;
+using Domain.Exceptions;
 using Domain.Interfaces;
 using Microsoft.Extensions.Configuration;
 
@@ -27,13 +28,20 @@ public class PairService : IPairService
         throw new NotImplementedException();
     }
 
-    public Task Delete(string key)
+    public async Task Delete(string key)
     {
-        throw new NotImplementedException();
+       var keyValue =await _pairRepository.GetByKey(key);
+        if (keyValue == null)
+        {
+            throw new NotFoundException("Dont have this a key");
+        }
+        await _pairRepository.Delete(key);
     }
 
     public Task<GetPairResponse> Get(string key)
     {
         throw new NotImplementedException();
     }
+
+    
 }
