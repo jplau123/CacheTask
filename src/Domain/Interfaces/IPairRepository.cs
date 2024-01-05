@@ -8,9 +8,8 @@ namespace Domain.Interfaces
 
         public Task<PairEntity?> Create(PairEntity pair);
         public Task<int> Update(PairEntity pair);
-        public Task<PairEntity> Append(PairEntity pair);
         public Task<PairEntity?> GetByKey(string key);
         public Task<int> Delete(string key);
-        public Task<int> UpdateEpiresAt(DateTimeOffset timestamp);
+        public Task<int> UpdateEpiresAt(string key, DateTimeOffset timestamp);
     }
 }

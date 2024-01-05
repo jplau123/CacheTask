@@ -15,7 +15,7 @@ public class PairController : ControllerBase
         _pairService = pairService;
     }
 
-    [HttpPost]
+    [HttpPost("create")]
     public async Task<IActionResult> Create([FromBody] CreatePairRequest request)
     {
         var result =  await _pairService.Create(request);
@@ -29,14 +29,14 @@ public class PairController : ControllerBase
         return CreatedAtAction(nameof(Get), new { key = result.Key }, result);
     }
 
-    [HttpDelete]
+    [HttpDelete("{key}")]
     public async Task<IActionResult> Delete(string key)
     {
         await _pairService.Delete(key);
         return NoContent();
     }
 
-    [HttpGet]
+    [HttpGet("{key}")]
     public async Task<IActionResult>Get(string key)
     {
         return Ok( await _pairService.Get(key));
