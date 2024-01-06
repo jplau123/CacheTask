@@ -37,6 +37,7 @@ public class ErrorMiddleware : IMiddleware
         switch (exception)
         {
             case NotFoundException:
+            case CoruptedDataException:
                 statusCode = (int)HttpStatusCode.NotFound;
                 break;
             case IncorrectApiKeyException:

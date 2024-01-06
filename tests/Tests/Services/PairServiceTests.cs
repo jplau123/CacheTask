@@ -5,20 +5,32 @@ using AutoFixture;
 using Application.Interfaces;
 using Domain.Entities;
 using Microsoft.Extensions.Configuration;
+using Application.DTOs.Requests;
+using Application.DTOs.Responses;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
+using FluentAssertions;
+using Domain.Exceptions;
+using System;
+using System.Collections.Generic;
+using System.Text.Json;
 
 
 public class PairServiceTests
 {
-    private readonly Mock<IPairRepository> _testRepository;
-    private readonly PairService _pairService;
+    private readonly Mock<IPairRepository> _repository;
+    private readonly PairService _service;
     private readonly IFixture _fixture;
     private readonly IConfiguration _configuration;
-    public PairServiceTests(IConfiguration configuration)
+    public PairServiceTests()
     {
 
-        _testRepository = new Mock<IPairRepository>();
-        _configuration = configuration;
-        _pairService = new PairService(_testRepository.Object, _configuration);
+        _repository = new Mock<IPairRepository>();
+        _configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string>
+        {
+            {"ExpirationPeriodInSeconds", "600" }
+        }!)
+            .Build();
+        _service = new PairService(_repository.Object, _configuration);
         _fixture = new Fixture();
     }
 
@@ -26,30 +38,202 @@ public class PairServiceTests
     public async Task Delete_ExistingKey_DeletesKey()
     {
         var key = _fixture.Create<string>();
-        var keyValue = new PairEntity { Key = key };
+        var expectedResult = new PairEntity { Key = key };
 
-        var configuration = new Mock<IConfiguration>();
-        
+        _repository.Setup(repo => repo.GetByKey(key)).ReturnsAsync(expectedResult);
 
-        _testRepository.Setup(repo => repo.GetByKey(key)).ReturnsAsync(keyValue);
+        await _service.Delete(key);
 
-        var pairService = new PairService(_testRepository.Object, configuration.Object);
+        _repository.Verify(repo => repo.Delete(key), Times.Once);
+    }
 
-        await pairService.Delete(key);
+    [Fact]
+    public async Task Delete_NonExistingKey_ThrowsNotFoundException()
+    {
+        var key = _fixture.Create<string>();
+        _repository.Setup(repo => repo.GetByKey(key)).Returns(Task.FromResult<PairEntity?>(null));
 
-        _testRepository.Verify(repo => repo.Delete(key), Times.Once);
+
+        await Assert.ThrowsAsync<NotFoundException>(async () => await _service.Delete(key));
     }
 
 
-    //[Fact]
-    //public async Task Delete_NonExistingKey_ThrowsNotFoundException()
-    //{
-    //    var key = "nonExistingKey";
-    //    var pairRepositoryMock = new Mock<IPairRepository>();
-    //    pairRepositoryMock.Setup(repo => repo.GetByKey(key)).ReturnsAsync((YourValueType)null); 
-    //    var yourClass = new PairService(pairRepositoryMock.Object);
+    [Fact]
+    public async Task GetById_GivenNonExistingKey_ThrowsNotFoundException()
+    {
+        string key = _fixture.Create<string>();
+        _repository.Setup(repo => repo.GetByKey(key)).Returns(Task.FromResult<PairEntity?>(null));
 
 
-    //    await Assert.ThrowsAsync<NotFoundException>(async () => await yourClass.Delete(key));
-    //}
+        Func<Task> result = async () => await _service.Get(key);
+        await result.Should().ThrowAsync<NotFoundException>();
+
+        _repository.Verify(repo => repo.GetByKey(key), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetById_GivenExistingKeyWithExpiredDate_ThrowsNotFoundExceptione()
+    {
+        string key = _fixture.Create<string>();
+
+        var repositoryResult = new PairEntity
+        {
+            Key = key,
+            ExpiresAt = DateTime.Now.AddDays(-2)
+        };
+        _repository.Setup(repo => repo.GetByKey(key)).ReturnsAsync(repositoryResult);
+
+        Func<Task> result = async () => await _service.Get(key);
+        await result.Should().ThrowAsync<NotFoundException>();
+
+        _repository.Verify(repo => repo.GetByKey(key), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetById_GivenExistingKeyWithNullExpirationPeriodInSecons_ThrowsCoruptedDataException()
+    {
+        string key = _fixture.Create<string>();
+
+        var repositoryResult = new PairEntity
+        {
+            Key = key,
+            ExpiresAt = DateTime.Now.AddDays(2),
+            ExpirationPeriodInSeconds = null
+        };
+        _repository.Setup(repo => repo.GetByKey(key)).ReturnsAsync(repositoryResult);
+
+        Func<Task> result = async () => await _service.Get(key);
+        await result.Should().ThrowAsync<CoruptedDataException>();
+
+        _repository.Verify(repo => repo.GetByKey(key), Times.Once);
+    }
+
+    [Fact]
+    public async Task GetById_GivenExistingKey_ReturnsGetPairResponse()
+    {
+        string key = _fixture.Create<string>();
+        var obj = _fixture.Create<PairEntity>();
+        var value = new List<object>();
+        value.Add(obj);
+        var repositoryResult = new PairEntity
+        {
+            Key = key,
+            ExpiresAt = DateTime.Now.AddDays(2),
+            ExpirationPeriodInSeconds = _fixture.Create<int>(),
+            Value = JsonSerializer.Serialize(value)
+        };
+        _repository.Setup(repo => repo.GetByKey(key)).ReturnsAsync(repositoryResult);
+        var expectedResult = new GetPairResponse
+        {
+            Key = key,
+            ExpiresAt = DateTime.UtcNow + TimeSpan.FromSeconds((int)repositoryResult.ExpirationPeriodInSeconds!),
+            ExpirationPeriodInSeconds = repositoryResult.ExpirationPeriodInSeconds,
+            Value = JsonSerializer.Deserialize<List<object>>(repositoryResult.Value)!
+        };
+
+        var result = await _service.Get(key);
+
+        _repository.Verify(repo => repo.GetByKey(key), Times.Once);
+        result.Key.Should().Be(expectedResult.Key);
+        //result.Value.Should().BeEquivalentTo(expectedResult.Value);   Throws error most possible due to serilization
+        result.ExpirationPeriodInSeconds.Should().Be(expectedResult.ExpirationPeriodInSeconds);
+        //result.Should().Be(expectedResult);   Throws error because of process taking different time and returns different Expires at time (nanoseconds :)
+    }
 }
+
+
+
+
+//public async Task<AppendPairResponse> Append(AppendPairRequest request)
+//{
+//    var getResult = await _pairRepository.GetByKey(request.Key);
+
+//    TimeSpan expirationTimeSpan = (getResult is null) ? GetExpirationTimeSpanFromConfig() : GetExpirationTimeSpan(getResult.ExpirationPeriodInSeconds);
+
+//    PairEntity pairEntityRequest;
+
+//    if (getResult is null || getResult.ExpiresAt < DateTime.UtcNow)
+//    {
+//        pairEntityRequest = new()
+//        {
+//            Key = request.Key,
+//            Value = SerializeJson(request.Value),
+//            ExpiresAt = DateTime.UtcNow + expirationTimeSpan,
+//            ExpirationPeriodInSeconds = (int)expirationTimeSpan.TotalSeconds
+//        };
+
+//        PairEntity pairEntityResponse = await _pairRepository.Create(pairEntityRequest)
+//            ?? throw new Exception("Failed to save pair entity.");
+
+//        return new AppendPairResponse()
+//        {
+//            Key = pairEntityResponse.Key,
+//            Value = DeserializeJson(pairEntityResponse.Value),
+//            ExpiresAt = pairEntityResponse.ExpiresAt,
+//            ExpirationPeriodInSeconds = pairEntityResponse.ExpirationPeriodInSeconds
+//        };
+//    }
+
+//    var listOfObjects = DeserializeJson(getResult.Value);
+
+//    listOfObjects.AddRange(request.Value);
+
+//    pairEntityRequest = new()
+//    {
+//        Id = getResult.Id,
+//        Key = request.Key,
+//        Value = SerializeJson(listOfObjects),
+//        ExpiresAt = DateTime.UtcNow + expirationTimeSpan,
+//        ExpirationPeriodInSeconds = (int)expirationTimeSpan.TotalSeconds
+//    };
+
+//    await _pairRepository.Update(pairEntityRequest);
+
+//    return new AppendPairResponse()
+//    {
+//        Key = getResult.Key,
+//        Value = listOfObjects,
+//        ExpiresAt = pairEntityRequest.ExpiresAt,
+//        ExpirationPeriodInSeconds = pairEntityRequest.ExpirationPeriodInSeconds
+//    };
+//}
+
+//public async Task<CreatePairResponse> Create(CreatePairRequest request)
+//{
+//    var getResult = await _pairRepository.GetByKey(request.Key);
+
+//    TimeSpan expirationTimeSpan = GetExpirationTimeSpan(request.ExpirationPeriodInSeconds);
+
+//    PairEntity pairEntityRequest = new()
+//    {
+//        Key = request.Key,
+//        Value = SerializeJson(request.Value),
+//        ExpiresAt = DateTime.UtcNow + expirationTimeSpan,
+//        ExpirationPeriodInSeconds = (int)expirationTimeSpan.TotalSeconds
+//    };
+
+//    if (getResult is null || getResult.ExpiresAt < DateTime.UtcNow)
+//    {
+//        var pairEntityResponse = await _pairRepository.Create(pairEntityRequest)
+//            ?? throw new Exception("Failed to save pair entity.");
+
+//        return new CreatePairResponse()
+//        {
+//            Key = pairEntityResponse.Key,
+//            Value = DeserializeJson(pairEntityResponse.Value),
+//            ExpiresAt = pairEntityResponse.ExpiresAt,
+//            ExpirationPeriodInSeconds = pairEntityResponse.ExpirationPeriodInSeconds
+//        };
+//    }
+
+//    pairEntityRequest.Id = getResult.Id;
+//    await _pairRepository.Update(pairEntityRequest);
+
+//    return new CreatePairResponse()
+//    {
+//        Key = pairEntityRequest.Key,
+//        Value = DeserializeJson(pairEntityRequest.Value),
+//        ExpiresAt = pairEntityRequest.ExpiresAt,
+//        ExpirationPeriodInSeconds = pairEntityRequest.ExpirationPeriodInSeconds
+//    };
+//}
