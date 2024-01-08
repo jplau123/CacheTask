@@ -139,6 +139,11 @@ public class PairService : IPairService
             throw new NotFoundException($"No key '{key}' exists.");
         }
 
+        if (result.ExpirationPeriodInSeconds == null)
+        {
+            throw new CoruptedDataException($"Expiration period of record '{key}' most likely is finished");
+        }
+
         var newExpiresAt = DateTime.UtcNow + TimeSpan.FromSeconds((int)result.ExpirationPeriodInSeconds!);
 
         await _pairRepository.UpdateEpiresAt(result.Key, newExpiresAt);
