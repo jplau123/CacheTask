@@ -26,7 +26,6 @@ app.MapControllers();
 
 app.UseErrorMiddleware();
 
-// Uncomment when using API KEY authentication
-//app.UseAuthMiddleware();
+app.UseAuthMiddleware();
 
 app.Run();
